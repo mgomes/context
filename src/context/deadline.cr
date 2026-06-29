@@ -3,6 +3,22 @@ class Context
     @deadline.try { |deadline| deadline - Time.utc }
   end
 
+  protected def remaining_until_deadline! : Time::Span?
+    remaining = remaining_until_deadline
+    return nil unless remaining
+    cancel_due_to_deadline! if remaining <= Time::Span.zero
+
+    remaining
+  end
+
+  protected def duration_limited_by_deadline!(duration : Time::Span) : Tuple(Time::Span, Bool)
+    remaining = remaining_until_deadline!
+    return {duration, false} unless remaining
+    return {remaining, true} if remaining <= duration
+
+    {duration, false}
+  end
+
   private def self.effective_deadline(parent_deadline : Time?, requested_deadline : Time) : Time
     return requested_deadline unless parent_deadline
 
@@ -35,5 +51,10 @@ class Context
     return unless source && deadline
 
     source.cancel(DEADLINE_EXCEEDED) if Time.utc >= deadline
+  end
+
+  protected def cancel_due_to_deadline! : NoReturn
+    cancel(DEADLINE_EXCEEDED)
+    raise_cancelled!
   end
 end

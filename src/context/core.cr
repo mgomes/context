@@ -1,5 +1,5 @@
 class Context
-  @@never_done = Channel(Nil).new
+  NEVER_DONE = Channel(Nil).new
 
   @source : CancelSource?
   @deadline : Time?
@@ -63,7 +63,7 @@ class Context
 
   # Raises `Context::Cancelled` if this context is canceled.
   def checkpoint! : Nil
-    raise Cancelled.new(reason) if cancelled?
+    raise_cancelled! if cancelled?
   end
 
   protected def source : CancelSource?
@@ -71,6 +71,10 @@ class Context
   end
 
   protected def done : Channel(Nil)
-    @source.try(&.done) || @@never_done
+    @source.try(&.done) || NEVER_DONE
+  end
+
+  protected def raise_cancelled! : NoReturn
+    raise Cancelled.new(reason)
   end
 end

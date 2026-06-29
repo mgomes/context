@@ -4,30 +4,17 @@ class Context
     ctx.checkpoint!
     return if duration <= Time::Span.zero
 
-    limited_by_deadline = false
-    if remaining = ctx.remaining_until_deadline
-      if remaining <= Time::Span.zero
-        ctx.cancel(DEADLINE_EXCEEDED)
-        raise Cancelled.new(ctx.reason)
-      end
-
-      if remaining <= duration
-        duration = remaining
-        limited_by_deadline = true
-      end
-    end
+    duration, limited_by_deadline = ctx.duration_limited_by_deadline!(duration)
 
     select
     when timeout(duration)
       if limited_by_deadline
-        ctx.cancel(DEADLINE_EXCEEDED)
-        raise Cancelled.new(ctx.reason)
+        ctx.cancel_due_to_deadline!
       end
 
       ctx.checkpoint!
     when ctx.done.receive?
-      ctx.checkpoint!
-      raise Cancelled.new(ctx.reason)
+      ctx.raise_cancelled!
     end
   end
 
@@ -35,29 +22,21 @@ class Context
   def self.receive(ctx : Context, channel : Channel(T)) : T forall T
     ctx.checkpoint!
 
-    if remaining = ctx.remaining_until_deadline
-      if remaining <= Time::Span.zero
-        ctx.cancel(DEADLINE_EXCEEDED)
-        raise Cancelled.new(ctx.reason)
-      end
-
+    if remaining = ctx.remaining_until_deadline!
       select
       when value = channel.receive
         value
       when ctx.done.receive?
-        ctx.checkpoint!
-        raise Cancelled.new(ctx.reason)
+        ctx.raise_cancelled!
       when timeout(remaining)
-        ctx.cancel(DEADLINE_EXCEEDED)
-        raise Cancelled.new(ctx.reason)
+        ctx.cancel_due_to_deadline!
       end
     else
       select
       when value = channel.receive
         value
       when ctx.done.receive?
-        ctx.checkpoint!
-        raise Cancelled.new(ctx.reason)
+        ctx.raise_cancelled!
       end
     end
   end

@@ -6,6 +6,7 @@ describe Context do
 
     ctx.cancelled?.should be_false
     ctx.reason.should be_nil
+    ctx.cancel.should be_false
     ctx.checkpoint!
   end
 
