@@ -85,4 +85,15 @@ describe "deadline scheduler" do
       fail "scheduler broke after canceling many long-timeout contexts"
     end
   end
+
+  it "does not retain a timeout child whose parent is already canceled" do
+    parent = Context.with_cancel
+    parent.cancel("aborted")
+
+    child = Context.with_timeout(parent, 1.hour)
+
+    child.cancelled?.should be_true
+    error = expect_raises(Context::Cancelled, "aborted") { child.checkpoint! }
+    error.should_not be_a(Context::DeadlineExceeded)
+  end
 end
