@@ -49,3 +49,15 @@ for expected output and scenario notes.
 
 The spec suite also runs each example with `crystal run --error-on-warnings` and
 asserts its output, so examples stay aligned with the public API.
+
+## Testing
+
+Run the full suite with:
+
+```sh
+crystal spec
+```
+
+The suite includes focused context behavior specs, runnable example specs, and
+integration specs that pass contexts through service-style stacks, nested
+timeouts, worker fibers, and cooperative sandbox checkpoints.
