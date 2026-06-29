@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Public `Context#done` channel for composing custom `select` expressions over a
   context and other channels.
 - GitHub Actions CI running formatting, specs (also under preview
-  multithreading), and example builds across Crystal 1.20.2 and the latest
+  multithreading), and example builds across Crystal 1.19.1 and the latest
   release.
 - `description`, `authors`, and `repository` metadata in `shard.yml`.
 
