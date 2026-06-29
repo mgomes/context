@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-29
+
 ### Added
 
 - `Context::DeadlineExceeded`, a subclass of `Context::Cancelled`, raised when a
@@ -32,4 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deadlines are fired by a single shared background scheduler (a min-heap of
   pending deadlines) instead of one fiber per deadline.
 
-[Unreleased]: https://github.com/mgomes/context/commits/master
+[Unreleased]: https://github.com/mgomes/context/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/mgomes/context/releases/tag/v0.1.0
