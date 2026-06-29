@@ -89,7 +89,12 @@ class Context
   end
 
   protected def raise_cancelled! : NoReturn
-    raise Cancelled.new(reason)
+    current_reason = reason
+    if current_reason == DEADLINE_EXCEEDED
+      raise DeadlineExceeded.new(current_reason)
+    else
+      raise Cancelled.new(current_reason)
+    end
   end
 
   protected def values : Hash(ValueKey, ValueBox)

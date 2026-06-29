@@ -93,6 +93,22 @@ describe Context do
     end
   end
 
+  it "raises Context::DeadlineExceeded when a deadline expires" do
+    ctx = Context.with_timeout(5.milliseconds)
+
+    expect_raises(Context::DeadlineExceeded, Context::DEADLINE_EXCEEDED) do
+      loop { ctx.checkpoint! }
+    end
+  end
+
+  it "raises base Context::Cancelled, not DeadlineExceeded, on manual cancellation" do
+    ctx = Context.with_cancel
+    ctx.cancel("boom")
+
+    error = expect_raises(Context::Cancelled, "boom") { ctx.checkpoint! }
+    error.should_not be_a(Context::DeadlineExceeded)
+  end
+
   it "wakes sleep when canceled" do
     ctx = Context.with_cancel
     elapsed = Channel(Time::Span).new
