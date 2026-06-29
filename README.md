@@ -140,3 +140,7 @@ Build every runnable shard target with:
 ```sh
 shards build --error-on-warnings
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
