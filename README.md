@@ -24,6 +24,7 @@ The current prototype supports:
 - parent-to-child cancellation propagation
 - request-scoped values with `ctx.with_value` and `ctx.value`
 - child fiber creation with `Context.spawn(ctx)`
+- optional execution-context placement with `Context.spawn(ctx, execution_context: ec)`
 - context-aware `sleep`, channel `receive`, and channel `send`
 
 The handle is explicit by design:
@@ -34,6 +35,24 @@ ctx = Context.with_timeout(100.milliseconds)
 loop do
   ctx.checkpoint!
   do_work
+end
+```
+
+## Execution Contexts
+
+Crystal execution contexts answer where a fiber runs. `Context` answers whether
+the work should still continue.
+
+The core shard does not require execution contexts. When compiling with
+Crystal's preview execution-context flags, `Context.spawn` can place child work
+into a specific `Fiber::ExecutionContext` while keeping the same cancellation,
+deadline, and value propagation rules:
+
+```crystal
+sandbox_ec = Fiber::ExecutionContext::Parallel.new("sandbox", 1)
+
+Context.spawn(ctx, execution_context: sandbox_ec) do |child_ctx|
+  run_sandbox(child_ctx)
 end
 ```
 
@@ -139,6 +158,12 @@ Build every runnable shard target with:
 
 ```sh
 shards build --error-on-warnings
+```
+
+Run the preview execution-context integration spec with:
+
+```sh
+crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context spec/execution_context_spec.cr
 ```
 
 ## License
