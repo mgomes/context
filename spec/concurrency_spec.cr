@@ -1,10 +1,24 @@
 require "./spec_helper"
 
-# Stress the cancellation and deadline primitives under concurrency. These run
-# in the default scheduler and, in CI, under `-Dpreview_mt -Dexecution_context`
-# so the same invariants are exercised across real OS threads. Each test gates
-# its fibers on a barrier channel to maximize contention, then asserts a
-# structural invariant that must hold regardless of scheduling.
+# Stress the cancellation and deadline primitives under concurrency. The racing
+# fibers are spawned with `stress_spawn`: under `-Dexecution_context` they run in
+# a dedicated parallel context so they execute across real OS threads (the
+# default context runs at parallelism 1, which would keep them cooperative);
+# otherwise they fall back to plain `spawn`. Each test gates its fibers on a
+# barrier channel to maximize contention, then asserts a structural invariant
+# that must hold regardless of scheduling.
+{% if flag?(:execution_context) %}
+  CONCURRENCY_STRESS_CONTEXT = Fiber::ExecutionContext::Parallel.new("concurrency-stress", 4)
+
+  private def stress_spawn(&block : ->)
+    CONCURRENCY_STRESS_CONTEXT.spawn(&block)
+  end
+{% else %}
+  private def stress_spawn(&block : ->)
+    spawn(&block)
+  end
+{% end %}
+
 describe "concurrency" do
   it "has exactly one winner when many fibers cancel one context at once" do
     50.times do
@@ -14,7 +28,7 @@ describe "concurrency" do
       reasons = (0...16).map { |i| "reason-#{i}" }
 
       reasons.each do |reason|
-        spawn do
+        stress_spawn do
           start.receive
           results.send(ctx.cancel(reason))
         end
@@ -37,13 +51,13 @@ describe "concurrency" do
     count = 100
 
     count.times do
-      spawn do
+      stress_spawn do
         start.receive
         children.send(Context.with_cancel(parent))
       end
     end
 
-    spawn do
+    stress_spawn do
       start.receive
       parent.cancel("shutdown")
       cancel_done.send(nil)
@@ -64,7 +78,7 @@ describe "concurrency" do
     count = 200
 
     count.times do
-      spawn do
+      stress_spawn do
         start.receive
         ctx = Context.with_timeout(1.hour)
         ctx.cancel("done")
@@ -77,7 +91,7 @@ describe "concurrency" do
 
     canary = Context.with_timeout(20.milliseconds)
     woke = Channel(Nil).new
-    spawn do
+    stress_spawn do
       canary.done.receive?
       woke.send(nil)
     end
@@ -96,7 +110,7 @@ describe "concurrency" do
     count = 100
 
     count.times do
-      spawn do
+      stress_spawn do
         child = Context.with_cancel(parent)
         ready.send(nil)
         begin
