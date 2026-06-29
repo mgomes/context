@@ -31,6 +31,18 @@ class Context
       signal_wakeup if wake
     end
 
+    # Removes `source` from the heap when it is canceled before its deadline.
+    # The lock-free check skips the scheduler entirely for never-scheduled
+    # sources (every `with_cancel` context), which are the common case.
+    def remove(source : CancelSource) : Nil
+      return if source.heap_index < 0
+
+      @mutex.synchronize do
+        index = source.heap_index
+        detach(index) if index >= 0
+      end
+    end
+
     private def ensure_started : Nil
       return if @started
       @started = true
@@ -77,7 +89,7 @@ class Context
 
       @mutex.synchronize do
         while (entry = @heap.first?) && entry.deadline <= now
-          due << pop.source
+          due << detach(0).source
         end
       end
 
@@ -86,24 +98,32 @@ class Context
 
     private def push(entry : Entry) : Nil
       @heap << entry
+      entry.source.heap_index = @heap.size - 1
       sift_up(@heap.size - 1)
     end
 
-    private def pop : Entry
-      root = @heap.first
+    # Removes the entry at `index` and returns it, keeping the heap ordered and
+    # every entry's `heap_index` in sync.
+    private def detach(index : Int32) : Entry
+      entry = @heap[index]
+      entry.source.heap_index = -1
       last = @heap.pop
-      unless @heap.empty?
-        @heap[0] = last
-        sift_down(0)
+
+      if index < @heap.size
+        @heap[index] = last
+        last.source.heap_index = index
+        sift_down(index)
+        sift_up(index)
       end
-      root
+
+      entry
     end
 
     private def sift_up(index : Int32) : Nil
       while index > 0
         parent = (index - 1) // 2
         break if @heap[parent].deadline <= @heap[index].deadline
-        @heap.swap(parent, index)
+        swap(parent, index)
         index = parent
       end
     end
@@ -118,9 +138,15 @@ class Context
         smallest = left if left < size && @heap[left].deadline < @heap[smallest].deadline
         smallest = right if right < size && @heap[right].deadline < @heap[smallest].deadline
         break if smallest == index
-        @heap.swap(index, smallest)
+        swap(index, smallest)
         index = smallest
       end
+    end
+
+    private def swap(i : Int32, j : Int32) : Nil
+      @heap.swap(i, j)
+      @heap[i].source.heap_index = i
+      @heap[j].source.heap_index = j
     end
 
     INSTANCE = new

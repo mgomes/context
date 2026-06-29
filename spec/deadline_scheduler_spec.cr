@@ -66,4 +66,23 @@ describe "deadline scheduler" do
 
     early.reason.should eq("manual stop")
   end
+
+  it "drains canceled long-timeout contexts and still fires fresh ones" do
+    canceled = Array.new(50) { Context.with_timeout(1.hour) }
+    canceled.each(&.cancel("done"))
+
+    short = Context.with_timeout(20.milliseconds)
+    woke = Channel(Nil).new
+
+    spawn do
+      short.done.receive?
+      woke.send(nil)
+    end
+
+    select
+    when woke.receive
+    when timeout(500.milliseconds)
+      fail "scheduler broke after canceling many long-timeout contexts"
+    end
+  end
 end
