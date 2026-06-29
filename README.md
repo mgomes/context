@@ -193,7 +193,7 @@ Run the full suite with:
 crystal spec --error-on-warnings
 ```
 
-The suite currently covers 54 examples across:
+The suite covers:
 
 - focused context behavior specs
 - edge and race specs for deadlines, cancellation, channels, values, and spawn
@@ -213,8 +213,8 @@ Run the optional execution-context integration spec on its own with:
 crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context spec/execution_context_spec.cr
 ```
 
-Run the full suite with the preview flags to get all 55 examples (the 54 above
-plus the execution-context integration spec):
+Run the full suite with the preview flags to also include the execution-context
+integration spec:
 
 ```sh
 crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context
