@@ -1,15 +1,14 @@
-require "weak_ref"
-
 class Context
   # Fires context deadlines from a single shared background fiber instead of one
   # fiber per deadline.
   #
-  # Pending deadlines live in a min-heap keyed by instant. Each entry holds a
-  # weak reference to its source, so a context abandoned before its deadline can
-  # be collected rather than pinned until it fires. The background fiber sleeps
-  # until the earliest deadline and is woken early when a sooner one registers.
+  # Pending deadlines live in a min-heap keyed by instant. An entry holds its
+  # source until the deadline fires, so a caller that keeps only `Context#done`
+  # (without retaining the context) still wakes when the deadline expires. The
+  # background fiber sleeps until the earliest deadline and is woken early when a
+  # sooner one registers.
   private class DeadlineScheduler
-    private record Entry, deadline : Time::Instant, source : WeakRef(CancelSource)
+    private record Entry, deadline : Time::Instant, source : CancelSource
 
     def initialize
       @mutex = Mutex.new
@@ -24,7 +23,7 @@ class Context
 
       @mutex.synchronize do
         earliest = @heap.first?.try(&.deadline)
-        push(Entry.new(deadline, WeakRef.new(source)))
+        push(Entry.new(deadline, source))
         ensure_started
         wake = earliest.nil? || deadline < earliest
       end
@@ -78,10 +77,7 @@ class Context
 
       @mutex.synchronize do
         while (entry = @heap.first?) && entry.deadline <= now
-          popped = pop
-          if source = popped.source.value
-            due << source
-          end
+          due << pop.source
         end
       end
 

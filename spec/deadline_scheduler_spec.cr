@@ -29,6 +29,23 @@ describe "deadline scheduler" do
     contexts.each { |ctx| ctx.reason.should eq(Context::DEADLINE_EXCEEDED) }
   end
 
+  it "closes an extracted done channel at the deadline even if the context is dropped" do
+    done = Context.with_timeout(30.milliseconds).done
+    GC.collect
+
+    woke = Channel(Nil).new
+    spawn do
+      done.receive?
+      woke.send(nil)
+    end
+
+    select
+    when woke.receive
+    when timeout(500.milliseconds)
+      fail "extracted done channel never closed after the context was dropped"
+    end
+  end
+
   it "keeps firing later deadlines after an earlier context is canceled manually" do
     early = Context.with_timeout(20.milliseconds)
     later = Context.with_timeout(60.milliseconds)
