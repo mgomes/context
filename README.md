@@ -24,7 +24,10 @@ The current prototype supports:
 - parent-to-child cancellation propagation
 - request-scoped values with `ctx.with_value` and `ctx.value`
 - child fiber creation with `Context.spawn(ctx)`
+- optional execution-context placement with `Context.spawn(ctx, execution_context: ec)`
 - context-aware `sleep`, channel `receive`, and channel `send`
+- a `ctx.done` channel for composing your own `select`
+- `Context::DeadlineExceeded` to tell timeouts apart from manual cancellation
 
 The handle is explicit by design:
 
@@ -36,6 +39,29 @@ loop do
   do_work
 end
 ```
+
+## Execution Contexts
+
+Crystal execution contexts answer where a fiber runs. `Context` answers whether
+the work should still continue.
+
+The core shard does not require execution contexts. When compiling with
+Crystal's preview execution-context flags, `Context.spawn` can place child work
+into a specific `Fiber::ExecutionContext` while keeping the same cancellation,
+deadline, and value propagation rules:
+
+```crystal
+sandbox_ec = Fiber::ExecutionContext::Parallel.new("sandbox", 1)
+
+Context.spawn(ctx, execution_context: sandbox_ec) do |child_ctx|
+  run_sandbox(child_ctx)
+end
+```
+
+This API is compiled only when Crystal's execution-context preview is enabled.
+Without those flags, `Context.spawn(ctx)` uses Crystal's normal `spawn` and
+inherits the current runtime placement. Cancellation semantics stay the same in
+both modes.
 
 ## How Cancellation Works
 
@@ -57,6 +83,42 @@ Deadlines use the earliest deadline in the parent-child chain. Manual
 cancellation and deadline cancellation are both idempotent; the first reason
 wins.
 
+Deadline cancellation raises `Context::DeadlineExceeded`, a subclass of
+`Context::Cancelled`. Rescue the base class to handle any cancellation, or the
+subclass to single out timeouts:
+
+```crystal
+begin
+  ctx.checkpoint!
+rescue Context::DeadlineExceeded
+  # deadline expired
+rescue Context::Cancelled
+  # canceled for some other reason
+end
+```
+
+Deadlines are tracked against a monotonic clock (`Time.instant`), so a system
+clock adjustment will not move when a deadline fires. `Context.with_deadline`
+accepts a wall-clock `Time` and converts it to a monotonic instant once, at
+creation. `ctx.deadline` returns that `Time::Instant`.
+
+## Composing With `done`
+
+`ctx.done` returns a channel that closes when the context is canceled. Use it to
+build your own `select` over a context plus your own channels:
+
+```crystal
+select
+when value = work.receive
+  handle(value)
+when ctx.done.receive?
+  ctx.checkpoint! # raises Context::Cancelled with the reason
+end
+```
+
+The channel is receive-only: never send to it or close it. A context with no
+cancellation source (`Context.background`) returns a channel that never closes.
+
 ## Values Are Typed
 
 Context values are for request-scoped metadata such as request IDs, sandbox IDs,
@@ -73,6 +135,10 @@ ctx = Context.background
 ctx.value(:sandbox_id, String) # => "sandbox-7"
 ctx.value(request_id)          # => "req-9"
 ```
+
+`with_value` does not create a new cancellation scope: the returned context
+shares its parent's cancellation source, so canceling it cancels the parent and
+its other descendants. Use `with_cancel` when you need an independent lifetime.
 
 ## What This Does Not Do
 
@@ -127,7 +193,7 @@ Run the full suite with:
 crystal spec --error-on-warnings
 ```
 
-The suite currently covers 47 examples across:
+The suite covers:
 
 - focused context behavior specs
 - edge and race specs for deadlines, cancellation, channels, values, and spawn
@@ -139,6 +205,19 @@ Build every runnable shard target with:
 
 ```sh
 shards build --error-on-warnings
+```
+
+Run the optional execution-context integration spec on its own with:
+
+```sh
+crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context spec/execution_context_spec.cr
+```
+
+Run the full suite with the preview flags to also include the execution-context
+integration spec:
+
+```sh
+crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context
 ```
 
 ## License

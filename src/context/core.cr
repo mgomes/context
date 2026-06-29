@@ -1,13 +1,11 @@
 class Context
-  NEVER_DONE = Channel(Nil).new
-
   @source : CancelSource?
-  @deadline : Time?
+  @deadline : Time::Instant?
   @values : Hash(ValueKey, ValueBox)
 
   protected def initialize(
     @source : CancelSource?,
-    @deadline : Time? = nil,
+    @deadline : Time::Instant? = nil,
     @values = {} of ValueKey => ValueBox,
   )
   end
@@ -34,7 +32,7 @@ class Context
 
   # Creates a child context canceled when `timeout` expires or its parent is canceled.
   def self.with_timeout(parent : Context, timeout : Time::Span) : Context
-    with_deadline(parent, Time.utc + timeout)
+    with_deadline_at(parent, Time.instant + timeout)
   end
 
   # Creates a context canceled at `deadline` with `Context.background` as parent.
@@ -44,6 +42,10 @@ class Context
 
   # Creates a child context canceled when `deadline` arrives or its parent is canceled.
   def self.with_deadline(parent : Context, deadline : Time) : Context
+    with_deadline_at(parent, instant_from_wall(deadline))
+  end
+
+  private def self.with_deadline_at(parent : Context, deadline : Time::Instant) : Context
     effective_deadline = effective_deadline(parent.deadline, deadline)
     ctx = new(CancelSource.new(parent.source), effective_deadline, parent.values)
     ctx.start_deadline_timer
@@ -64,8 +66,8 @@ class Context
     @source.try(&.cancelled?) || false
   end
 
-  # Returns the effective deadline for this context, if any.
-  def deadline : Time?
+  # Returns the effective deadline for this context as a monotonic instant, if any.
+  def deadline : Time::Instant?
     @deadline
   end
 
@@ -84,12 +86,22 @@ class Context
     @source
   end
 
-  protected def done : Channel(Nil)
-    @source.try(&.done) || NEVER_DONE
+  # Returns a channel that is closed when this context is canceled.
+  #
+  # Use it to compose your own `select`. Receive-only: never send to or close
+  # the returned channel. A context with no cancellation source returns a fresh
+  # channel that never closes.
+  def done : Channel(Nil)
+    @source.try(&.done) || Channel(Nil).new
   end
 
   protected def raise_cancelled! : NoReturn
-    raise Cancelled.new(reason)
+    current_reason = reason
+    if @source.try(&.by_deadline?)
+      raise DeadlineExceeded.new(current_reason)
+    else
+      raise Cancelled.new(current_reason)
+    end
   end
 
   protected def values : Hash(ValueKey, ValueBox)

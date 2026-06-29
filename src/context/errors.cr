@@ -10,4 +10,12 @@ class Context
       super(reason || DEFAULT_REASON)
     end
   end
+
+  # Raised instead of `Cancelled` when cancellation was caused by a deadline.
+  #
+  # `DeadlineExceeded` is a `Cancelled`, so `rescue Context::Cancelled` still
+  # catches it; rescue `DeadlineExceeded` to distinguish timeouts from manual
+  # cancellation.
+  class DeadlineExceeded < Cancelled
+  end
 end
