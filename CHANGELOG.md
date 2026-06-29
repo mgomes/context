@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deadline expires so callers can distinguish timeouts from manual cancellation.
 - Public `Context#done` channel for composing custom `select` expressions over a
   context and other channels.
-- GitHub Actions CI running formatting, specs, the execution-context preview
-  spec, and example builds across Crystal 1.20.2 and the latest release.
+- GitHub Actions CI running formatting, specs (also under preview
+  multithreading), and example builds across Crystal 1.20.2 and the latest
+  release.
 - `description`, `authors`, and `repository` metadata in `shard.yml`.
 
 ### Changed

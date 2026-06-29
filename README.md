@@ -203,6 +203,8 @@ The suite covers:
 - executable example specs that run each example with `crystal run`
 - integration specs that pass contexts through service-style stacks, nested
   timeouts, worker fibers, and cooperative sandbox checkpoints
+- concurrency stress specs that exercise cancellation, child creation, and the
+  deadline scheduler under contention (CI runs them across real threads)
 
 Build every runnable shard target with:
 
