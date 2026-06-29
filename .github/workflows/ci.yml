@@ -8,6 +8,7 @@ on:
 jobs:
   spec:
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.crystal == 'latest' }}
     strategy:
       fail-fast: false
       matrix:

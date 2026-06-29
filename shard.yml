@@ -1,8 +1,7 @@
 name: context
 version: 0.1.0
 
-description: |
-  Cooperative cancellation, deadlines, and request-scoped values for Crystal.
+description: Cooperative cancellation, deadlines, and request-scoped values for Crystal.
 
 authors:
   - Mauricio Gomes <mauricio@edge14.com>
