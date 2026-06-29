@@ -33,3 +33,19 @@ The initial prototype includes:
 
 Cancellation is cooperative. This shard does not forcibly preempt arbitrary
 Crystal code, enforce memory limits, or replace process and container sandboxing.
+
+## Examples
+
+The `examples/` directory includes runnable examples for realistic cancellation
+boundaries:
+
+- `channel_receive`: cancel a fiber blocked on a channel receive
+- `cooperative_worker`: stop a worker loop at context-aware boundaries
+- `sandbox_interpreter`: enforce a deadline in a small interpreter loop
+- `timeout_loop`: minimal tight-loop checkpoint smoke test
+
+Run them with `shards run <name>`. See [examples/README.md](examples/README.md)
+for expected output and scenario notes.
+
+The spec suite also runs each example with `crystal run --error-on-warnings` and
+asserts its output, so examples stay aligned with the public API.

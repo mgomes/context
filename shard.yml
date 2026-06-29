@@ -6,5 +6,11 @@ crystal: ">= 1.20.2"
 targets:
   timeout_loop:
     main: examples/timeout_loop.cr
+  channel_receive:
+    main: examples/channel_receive.cr
+  cooperative_worker:
+    main: examples/cooperative_worker.cr
+  sandbox_interpreter:
+    main: examples/sandbox_interpreter.cr
 
 license: MIT
