@@ -1,0 +1,10 @@
+name: context
+version: 0.1.0
+
+crystal: ">= 1.20.2"
+
+targets:
+  timeout_loop:
+    main: examples/timeout_loop.cr
+
+license: MIT
