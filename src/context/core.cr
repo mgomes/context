@@ -84,7 +84,12 @@ class Context
     @source
   end
 
-  protected def done : Channel(Nil)
+  # Returns a channel that is closed when this context is canceled.
+  #
+  # Use it to compose your own `select`. Receive-only: never send to or close
+  # the returned channel. A context with no cancellation source returns a
+  # channel that never closes.
+  def done : Channel(Nil)
     @source.try(&.done) || NEVER_DONE
   end
 

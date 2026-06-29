@@ -183,4 +183,45 @@ describe Context do
       Context.receive(ctx, channel)
     end
   end
+
+  it "exposes a public done channel for custom selects" do
+    ctx = Context.with_cancel
+    other = Channel(Int32).new
+    result = Channel(String).new
+
+    spawn do
+      select
+      when other.receive
+        result.send("other")
+      when ctx.done.receive?
+        result.send("done")
+      end
+    end
+
+    ::sleep 10.milliseconds
+    ctx.cancel("stop")
+
+    select
+    when message = result.receive
+      message.should eq("done")
+    when timeout(500.milliseconds)
+      fail "custom select did not observe cancellation"
+    end
+  end
+
+  it "closes the done channel when a deadline expires" do
+    ctx = Context.with_timeout(10.milliseconds)
+    result = Channel(Nil).new
+
+    spawn do
+      ctx.done.receive?
+      result.send(nil)
+    end
+
+    select
+    when result.receive
+    when timeout(500.milliseconds)
+      fail "done channel did not close at the deadline"
+    end
+  end
 end
