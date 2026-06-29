@@ -97,9 +97,10 @@ rescue Context::Cancelled
 end
 ```
 
-Deadlines are compared against `Time.utc` (wall clock), so a large system clock
-adjustment can move when a deadline fires. The blocking helpers' timers are
-monotonic, but the stored deadline is not.
+Deadlines are tracked against a monotonic clock (`Time.instant`), so a system
+clock adjustment will not move when a deadline fires. `Context.with_deadline`
+accepts a wall-clock `Time` and converts it to a monotonic instant once, at
+creation. `ctx.deadline` returns that `Time::Instant`.
 
 ## Composing With `done`
 
@@ -192,7 +193,7 @@ Run the full suite with:
 crystal spec --error-on-warnings
 ```
 
-The suite currently covers 51 examples across:
+The suite currently covers 52 examples across:
 
 - focused context behavior specs
 - edge and race specs for deadlines, cancellation, channels, values, and spawn
@@ -212,7 +213,7 @@ Run the optional execution-context integration spec on its own with:
 crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context spec/execution_context_spec.cr
 ```
 
-Run the full suite with the preview flags to get all 52 examples (the 51 above
+Run the full suite with the preview flags to get all 53 examples (the 52 above
 plus the execution-context integration spec):
 
 ```sh

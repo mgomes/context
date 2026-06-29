@@ -1,6 +1,6 @@
 class Context
   protected def remaining_until_deadline : Time::Span?
-    @deadline.try { |deadline| deadline - Time.utc }
+    @deadline.try { |deadline| deadline - Time.instant }
   end
 
   protected def remaining_until_deadline! : Time::Span?
@@ -19,10 +19,16 @@ class Context
     {duration, false}
   end
 
-  private def self.effective_deadline(parent_deadline : Time?, requested_deadline : Time) : Time
+  private def self.effective_deadline(parent_deadline : Time::Instant?, requested_deadline : Time::Instant) : Time::Instant
     return requested_deadline unless parent_deadline
 
     parent_deadline <= requested_deadline ? parent_deadline : requested_deadline
+  end
+
+  # Converts a wall-clock deadline to a monotonic instant so the deadline is
+  # unaffected by later system clock adjustments.
+  private def self.instant_from_wall(deadline : Time) : Time::Instant
+    Time.instant + (deadline - Time.utc)
   end
 
   protected def start_deadline_timer : Nil
@@ -30,7 +36,7 @@ class Context
     deadline = @deadline
     return unless source && deadline
 
-    remaining = deadline - Time.utc
+    remaining = deadline - Time.instant
     if remaining <= Time::Span.zero
       source.cancel(DEADLINE_EXCEEDED)
       return
@@ -50,7 +56,7 @@ class Context
     deadline = @deadline
     return unless source && deadline
 
-    source.cancel(DEADLINE_EXCEEDED) if Time.utc >= deadline
+    source.cancel(DEADLINE_EXCEEDED) if Time.instant >= deadline
   end
 
   protected def cancel_due_to_deadline! : NoReturn

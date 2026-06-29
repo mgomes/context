@@ -17,4 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   spec, and example builds across Crystal 1.20.2 and the latest release.
 - `description`, `authors`, and `repository` metadata in `shard.yml`.
 
+### Changed
+
+- Deadlines are now tracked against a monotonic clock (`Time.instant`) instead
+  of wall-clock `Time.utc`, so system clock adjustments no longer move when a
+  deadline fires. `Context.with_deadline` still accepts a wall-clock `Time` and
+  converts it once at creation; `Context#deadline` now returns a `Time::Instant`.
+
 [Unreleased]: https://github.com/mgomes/context/commits/master

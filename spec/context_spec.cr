@@ -62,6 +62,16 @@ describe Context do
     ctx.reason.should eq(Context::DEADLINE_EXCEEDED)
   end
 
+  it "exposes the deadline as a monotonic instant" do
+    ctx = Context.with_timeout(1.second)
+
+    deadline = ctx.deadline
+    deadline.should be_a(Time::Instant)
+    remaining = deadline.not_nil! - Time.instant
+    remaining.should be > Time::Span.zero
+    remaining.should be <= 1.second
+  end
+
   it "propagates timeout cancellation to children" do
     parent = Context.with_timeout(10.milliseconds)
     child = Context.with_cancel(parent)
