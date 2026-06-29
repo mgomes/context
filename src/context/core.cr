@@ -1,6 +1,4 @@
 class Context
-  NEVER_DONE = Channel(Nil).new
-
   @source : CancelSource?
   @deadline : Time::Instant?
   @values : Hash(ValueKey, ValueBox)
@@ -91,15 +89,15 @@ class Context
   # Returns a channel that is closed when this context is canceled.
   #
   # Use it to compose your own `select`. Receive-only: never send to or close
-  # the returned channel. A context with no cancellation source returns a
+  # the returned channel. A context with no cancellation source returns a fresh
   # channel that never closes.
   def done : Channel(Nil)
-    @source.try(&.done) || NEVER_DONE
+    @source.try(&.done) || Channel(Nil).new
   end
 
   protected def raise_cancelled! : NoReturn
     current_reason = reason
-    if current_reason == DEADLINE_EXCEEDED
+    if @source.try(&.by_deadline?)
       raise DeadlineExceeded.new(current_reason)
     else
       raise Cancelled.new(current_reason)

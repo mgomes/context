@@ -38,14 +38,14 @@ class Context
 
     remaining = deadline - Time.instant
     if remaining <= Time::Span.zero
-      source.cancel(DEADLINE_EXCEEDED)
+      source.cancel(DEADLINE_EXCEEDED, by_deadline: true)
       return
     end
 
     spawn do
       select
       when timeout(remaining)
-        source.cancel(DEADLINE_EXCEEDED)
+        source.cancel(DEADLINE_EXCEEDED, by_deadline: true)
       when source.done.receive?
       end
     end
@@ -56,11 +56,11 @@ class Context
     deadline = @deadline
     return unless source && deadline
 
-    source.cancel(DEADLINE_EXCEEDED) if Time.instant >= deadline
+    source.cancel(DEADLINE_EXCEEDED, by_deadline: true) if Time.instant >= deadline
   end
 
   protected def cancel_due_to_deadline! : NoReturn
-    cancel(DEADLINE_EXCEEDED)
+    @source.try &.cancel(DEADLINE_EXCEEDED, by_deadline: true)
     raise_cancelled!
   end
 end

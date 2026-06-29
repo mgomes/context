@@ -119,6 +119,14 @@ describe Context do
     error.should_not be_a(Context::DeadlineExceeded)
   end
 
+  it "treats a manual cancel as Cancelled even when given the deadline message" do
+    ctx = Context.with_cancel
+    ctx.cancel(Context::DEADLINE_EXCEEDED)
+
+    error = expect_raises(Context::Cancelled) { ctx.checkpoint! }
+    error.should_not be_a(Context::DeadlineExceeded)
+  end
+
   it "wakes sleep when canceled" do
     ctx = Context.with_cancel
     elapsed = Channel(Time::Span).new
@@ -233,5 +241,9 @@ describe Context do
     when timeout(500.milliseconds)
       fail "done channel did not close at the deadline"
     end
+  end
+
+  it "does not share a done channel across sourceless contexts" do
+    Context.background.done.same?(Context.background.done).should be_false
   end
 end
