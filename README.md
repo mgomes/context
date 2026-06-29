@@ -1,12 +1,32 @@
 # context
 
-`context` is a Crystal shard prototype for Go-style cooperative cancellation and
-deadlines.
+`context` is a Crystal shard for cooperative cancellation, deadlines, and
+request-scoped values. It answers one question for running work:
+
+> Should this work still be allowed to continue?
+
+It does not decide where a fiber runs. It does not forcibly stop arbitrary
+Crystal code. It gives code a small, explicit handle it can pass down the stack
+and check at blocking or CPU-bound cooperative boundaries.
 
 Requires Crystal 1.20.2 or newer.
 
-It is intentionally explicit: pass `ctx : Context` through the work that should
-observe cancellation, then call `ctx.checkpoint!` at cooperative boundaries.
+## What This Provides
+
+Use `Context` when a request, job, sandbox, or worker needs a shared lifetime.
+The current prototype supports:
+
+- root contexts with `Context.background`
+- manual cancellation with `Context.with_cancel`
+- deadlines with `Context.with_timeout` and `Context.with_deadline`
+- cancellation reasons with `ctx.reason`
+- cooperative checkpoints with `ctx.checkpoint!`
+- parent-to-child cancellation propagation
+- request-scoped values with `ctx.with_value` and `ctx.value`
+- child fiber creation with `Context.spawn(ctx)`
+- context-aware `sleep`, channel `receive`, and channel `send`
+
+The handle is explicit by design:
 
 ```crystal
 ctx = Context.with_timeout(100.milliseconds)
@@ -17,53 +37,106 @@ loop do
 end
 ```
 
-The initial prototype includes:
+## How Cancellation Works
 
-- `Context.background`
-- `Context.with_cancel`
-- `Context.with_timeout`
-- `Context.with_deadline`
-- `ctx.with_value`
-- `ctx.cancel`
-- `ctx.cancelled?`
-- `ctx.reason`
-- `ctx.deadline`
-- `ctx.checkpoint!`
-- parent-child cancellation propagation
-- `Context.spawn(ctx)`
-- `Context.sleep(ctx, duration)`
-- `Context.receive(ctx, channel)`
-- `Context.send(ctx, channel, value)`
+Cancellation is cooperative. Code stops when it calls `ctx.checkpoint!` or uses a
+context-aware wrapper such as `Context.sleep`, `Context.receive`, or
+`Context.send`.
 
-Cancellation is cooperative. This shard does not forcibly preempt arbitrary
-Crystal code, enforce memory limits, or replace process and container sandboxing.
-Code that never calls `ctx.checkpoint!` and never uses context-aware blocking
-helpers cannot be stopped by this shard alone.
+Child contexts inherit parent cancellation:
+
+```crystal
+parent = Context.with_cancel
+child = Context.with_timeout(parent, 1.second)
+
+parent.cancel("client disconnected")
+child.checkpoint! # raises Context::Cancelled
+```
+
+Deadlines use the earliest deadline in the parent-child chain. Manual
+cancellation and deadline cancellation are both idempotent; the first reason
+wins.
+
+## Values Are Typed
+
+Context values are for request-scoped metadata such as request IDs, sandbox IDs,
+or trace IDs. Symbol keys are convenient, and typed keys avoid accidental type
+collisions:
+
+```crystal
+request_id = Context::Key(String).new(:request_id)
+
+ctx = Context.background
+  .with_value(:sandbox_id, "sandbox-7")
+  .with_value(request_id, "req-9")
+
+ctx.value(:sandbox_id, String) # => "sandbox-7"
+ctx.value(request_id)          # => "req-9"
+```
+
+## What This Does Not Do
+
+This shard cannot preempt code that never cooperates.
+
+This will stop:
+
+```crystal
+loop do
+  ctx.checkpoint!
+  execute_next_instruction
+end
+```
+
+This will not:
+
+```crystal
+while true
+end
+```
+
+Hard sandbox termination still belongs below this layer: process isolation,
+containers, microVMs, OS limits, or runtime support. `Context` is semantic
+lifetime control, not a resource-limit mechanism.
 
 ## Examples
 
-The `examples/` directory includes runnable examples for realistic cancellation
-boundaries:
+The runnable examples cover the cancellation boundaries this shard is meant to
+make boring:
 
-- `channel_receive`: cancel a fiber blocked on a channel receive
-- `cooperative_worker`: stop a worker loop at context-aware boundaries
-- `sandbox_interpreter`: enforce a deadline in a small interpreter loop
-- `timeout_loop`: minimal tight-loop checkpoint smoke test
+- `channel_receive`: a fiber blocked on `Context.receive` wakes when canceled
+- `cooperative_worker`: a worker loop exits at context-aware boundaries
+- `sandbox_interpreter`: an interpreter loop stops at a deadline checkpoint
+- `timeout_loop`: the smallest tight-loop checkpoint smoke test
 
-Run them with `shards run <name>`. See [examples/README.md](examples/README.md)
-for expected output and scenario notes.
+Run them with:
 
-The spec suite also runs each example with `crystal run --error-on-warnings` and
-asserts its output, so examples stay aligned with the public API.
+```sh
+shards run channel_receive
+shards run cooperative_worker
+shards run sandbox_interpreter
+shards run timeout_loop
+```
 
-## Testing
+See [examples/README.md](examples/README.md) for expected output.
+
+## Verification
 
 Run the full suite with:
 
 ```sh
-crystal spec
+crystal spec --error-on-warnings
 ```
 
-The suite includes focused context behavior specs, runnable example specs, and
-integration specs that pass contexts through service-style stacks, nested
-timeouts, worker fibers, and cooperative sandbox checkpoints.
+The suite currently covers 47 examples across:
+
+- focused context behavior specs
+- edge and race specs for deadlines, cancellation, channels, values, and spawn
+- executable example specs that run each example with `crystal run`
+- integration specs that pass contexts through service-style stacks, nested
+  timeouts, worker fibers, and cooperative sandbox checkpoints
+
+Build every runnable shard target with:
+
+```sh
+shards build --error-on-warnings
+```
