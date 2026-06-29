@@ -69,6 +69,34 @@ describe "context edge cases" do
     ctx.reason.should eq(Context::DEADLINE_EXCEEDED)
   end
 
+  it "raises Cancelled, not DeadlineExceeded, when a manual cancel precedes the deadline" do
+    ctx = Context.with_timeout(10.milliseconds)
+
+    ctx.cancel("manual stop")
+    Context.sleep(Context.background, 30.milliseconds)
+
+    error = expect_raises(Context::Cancelled, "manual stop") { ctx.checkpoint! }
+    error.should_not be_a(Context::DeadlineExceeded)
+  end
+
+  it "raises DeadlineExceeded when the deadline precedes a later manual cancel" do
+    ctx = Context.with_timeout(10.milliseconds)
+
+    Context.sleep(Context.background, 30.milliseconds)
+    ctx.cancel("late manual")
+
+    expect_raises(Context::DeadlineExceeded, Context::DEADLINE_EXCEEDED) { ctx.checkpoint! }
+  end
+
+  it "propagates a parent deadline to a with_cancel child as DeadlineExceeded" do
+    parent = Context.with_timeout(10.milliseconds)
+    child = Context.with_cancel(parent)
+
+    Context.sleep(Context.background, 30.milliseconds)
+
+    expect_raises(Context::DeadlineExceeded) { child.checkpoint! }
+  end
+
   it "allows only one concurrent cancellation winner" do
     ctx = Context.with_cancel
     start = Channel(Nil).new
