@@ -31,10 +31,11 @@ class Context
     Time.instant + (deadline - Time.utc)
   end
 
-  protected def start_deadline_timer : Nil
+  protected def schedule_deadline : Nil
     source = @source
     deadline = @deadline
     return unless source && deadline
+    return if source.cancelled?
 
     remaining = deadline - Time.instant
     if remaining <= Time::Span.zero
@@ -42,13 +43,12 @@ class Context
       return
     end
 
-    spawn do
-      select
-      when timeout(remaining)
-        source.cancel(DEADLINE_EXCEEDED, by_deadline: true)
-      when source.done.receive?
-      end
-    end
+    DeadlineScheduler::INSTANCE.register(deadline, source)
+
+    # Closes the race where the parent cancels between the check above and the
+    # registration: that cancel's own removal ran before the entry existed, so
+    # remove it here once it is in the heap.
+    DeadlineScheduler::INSTANCE.remove(source) if source.cancelled?
   end
 
   private def expire_deadline : Nil

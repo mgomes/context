@@ -102,6 +102,9 @@ clock adjustment will not move when a deadline fires. `Context.with_deadline`
 accepts a wall-clock `Time` and converts it to a monotonic instant once, at
 creation. `ctx.deadline` returns that `Time::Instant`.
 
+A single shared background fiber fires all pending deadlines from a min-heap, so
+deadlines cost one shared fiber rather than one fiber per context.
+
 ## Composing With `done`
 
 `ctx.done` returns a channel that closes when the context is canceled. Use it to

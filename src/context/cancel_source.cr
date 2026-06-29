@@ -9,6 +9,7 @@ class Context
     @cancelled : Bool
     @reason : String?
     @by_deadline : Bool
+    @heap_index : Atomic(Int32)
 
     def initialize(@parent : CancelSource? = nil)
       @done = Channel(Nil).new
@@ -17,7 +18,19 @@ class Context
       @cancelled = false
       @reason = nil
       @by_deadline = false
+      @heap_index = Atomic(Int32).new(-1)
       @parent.try &.add_child(self)
+    end
+
+    # Position in the deadline scheduler's heap, or -1 when not scheduled. Owned
+    # by the scheduler; atomic so cancellation can skip the scheduler lock when
+    # the source was never scheduled.
+    def heap_index : Int32
+      @heap_index.get
+    end
+
+    def heap_index=(index : Int32) : Nil
+      @heap_index.set(index)
     end
 
     def cancel(reason : String? = nil, by_deadline : Bool = false) : Bool
@@ -41,6 +54,7 @@ class Context
         @done.close
       end
 
+      DeadlineScheduler::INSTANCE.remove(self)
       parent.try &.remove_child(self)
       children.each { |child| child.cancel(reason, by_deadline) }
       true
