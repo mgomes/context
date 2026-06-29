@@ -40,4 +40,25 @@ class Context
       end
     end
   end
+
+  # Sends `value` to `channel` or raises when `ctx` is canceled.
+  def self.send(ctx : Context, channel : Channel(T), value : T) : Nil forall T
+    ctx.checkpoint!
+
+    if remaining = ctx.remaining_until_deadline!
+      select
+      when channel.send(value)
+      when ctx.done.receive?
+        ctx.raise_cancelled!
+      when timeout(remaining)
+        ctx.cancel_due_to_deadline!
+      end
+    else
+      select
+      when channel.send(value)
+      when ctx.done.receive?
+        ctx.raise_cancelled!
+      end
+    end
+  end
 end

@@ -22,17 +22,23 @@ The initial prototype includes:
 - `Context.background`
 - `Context.with_cancel`
 - `Context.with_timeout`
+- `Context.with_deadline`
+- `ctx.with_value`
 - `ctx.cancel`
 - `ctx.cancelled?`
 - `ctx.reason`
 - `ctx.deadline`
 - `ctx.checkpoint!`
 - parent-child cancellation propagation
+- `Context.spawn(ctx)`
 - `Context.sleep(ctx, duration)`
 - `Context.receive(ctx, channel)`
+- `Context.send(ctx, channel, value)`
 
 Cancellation is cooperative. This shard does not forcibly preempt arbitrary
 Crystal code, enforce memory limits, or replace process and container sandboxing.
+Code that never calls `ctx.checkpoint!` and never uses context-aware blocking
+helpers cannot be stopped by this shard alone.
 
 ## Examples
 

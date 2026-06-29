@@ -79,6 +79,21 @@ module IntegrationSpec
       end
     end
   end
+
+  class FiniteSandbox
+    getter instructions_executed
+
+    def initialize
+      @instructions_executed = 0
+    end
+
+    def run(ctx : Context, instruction_count : Int32) : Nil
+      instruction_count.times do
+        ctx.checkpoint!
+        @instructions_executed += 1
+      end
+    end
+  end
 end
 
 describe "context integration" do
@@ -170,6 +185,33 @@ describe "context integration" do
 
     sandbox.instructions_executed.should be > 0
     ctx.reason.should eq(Context::DEADLINE_EXCEEDED)
+  end
+
+  it "lets finite cooperative sandbox work complete normally" do
+    sandbox = IntegrationSpec::FiniteSandbox.new
+    ctx = Context.with_timeout(1.second)
+
+    sandbox.run(ctx, 100)
+
+    sandbox.instructions_executed.should eq(100)
+    ctx.cancelled?.should be_false
+  end
+
+  it "carries typed values through timeout and spawn boundaries" do
+    request_id = Context::Key(String).new(:request_id)
+    parent = Context.background
+      .with_value(:sandbox_id, "sandbox-7")
+      .with_value(request_id, "req-9")
+    timed = Context.with_timeout(parent, 1.second)
+    observed = Channel(String).new
+
+    Context.spawn(timed) do |ctx|
+      sandbox_id = ctx.value(:sandbox_id, String).not_nil!
+      request = ctx.value(request_id).not_nil!
+      observed.send("#{sandbox_id}:#{request}")
+    end
+
+    receive_or_fail(observed, "spawned worker did not observe values").should eq("sandbox-7:req-9")
   end
 end
 

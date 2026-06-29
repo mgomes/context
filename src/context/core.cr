@@ -3,8 +3,13 @@ class Context
 
   @source : CancelSource?
   @deadline : Time?
+  @values : Hash(ValueKey, ValueBox)
 
-  private def initialize(@source : CancelSource?, @deadline : Time? = nil)
+  protected def initialize(
+    @source : CancelSource?,
+    @deadline : Time? = nil,
+    @values = {} of ValueKey => ValueBox,
+  )
   end
 
   # Returns a root context that is never canceled and has no deadline.
@@ -19,7 +24,7 @@ class Context
 
   # Creates a cancelable child context.
   def self.with_cancel(parent : Context) : Context
-    new(CancelSource.new(parent.source), parent.deadline)
+    new(CancelSource.new(parent.source), parent.deadline, parent.values)
   end
 
   # Creates a context canceled after `timeout` with `Context.background` as parent.
@@ -29,10 +34,19 @@ class Context
 
   # Creates a child context canceled when `timeout` expires or its parent is canceled.
   def self.with_timeout(parent : Context, timeout : Time::Span) : Context
-    requested_deadline = Time.utc + timeout
-    ctx = new(CancelSource.new(parent.source), effective_deadline(parent.deadline, requested_deadline))
+    with_deadline(parent, Time.utc + timeout)
+  end
+
+  # Creates a context canceled at `deadline` with `Context.background` as parent.
+  def self.with_deadline(deadline : Time) : Context
+    with_deadline(background, deadline)
+  end
+
+  # Creates a child context canceled when `deadline` arrives or its parent is canceled.
+  def self.with_deadline(parent : Context, deadline : Time) : Context
+    effective_deadline = effective_deadline(parent.deadline, deadline)
+    ctx = new(CancelSource.new(parent.source), effective_deadline, parent.values)
     ctx.start_deadline_timer
-    ctx.cancel(DEADLINE_EXCEEDED) if timeout <= Time::Span.zero
     ctx
   end
 
@@ -76,5 +90,9 @@ class Context
 
   protected def raise_cancelled! : NoReturn
     raise Cancelled.new(reason)
+  end
+
+  protected def values : Hash(ValueKey, ValueBox)
+    @values
   end
 end
