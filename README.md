@@ -26,6 +26,8 @@ The current prototype supports:
 - child fiber creation with `Context.spawn(ctx)`
 - optional execution-context placement with `Context.spawn(ctx, execution_context: ec)`
 - context-aware `sleep`, channel `receive`, and channel `send`
+- a `ctx.done` channel for composing your own `select`
+- `Context::DeadlineExceeded` to tell timeouts apart from manual cancellation
 
 The handle is explicit by design:
 
@@ -81,6 +83,41 @@ Deadlines use the earliest deadline in the parent-child chain. Manual
 cancellation and deadline cancellation are both idempotent; the first reason
 wins.
 
+Deadline cancellation raises `Context::DeadlineExceeded`, a subclass of
+`Context::Cancelled`. Rescue the base class to handle any cancellation, or the
+subclass to single out timeouts:
+
+```crystal
+begin
+  ctx.checkpoint!
+rescue Context::DeadlineExceeded
+  # deadline expired
+rescue Context::Cancelled
+  # canceled for some other reason
+end
+```
+
+Deadlines are compared against `Time.utc` (wall clock), so a large system clock
+adjustment can move when a deadline fires. The blocking helpers' timers are
+monotonic, but the stored deadline is not.
+
+## Composing With `done`
+
+`ctx.done` returns a channel that closes when the context is canceled. Use it to
+build your own `select` over a context plus your own channels:
+
+```crystal
+select
+when value = work.receive
+  handle(value)
+when ctx.done.receive?
+  ctx.checkpoint! # raises Context::Cancelled with the reason
+end
+```
+
+The channel is receive-only: never send to it or close it. A context with no
+cancellation source (`Context.background`) returns a channel that never closes.
+
 ## Values Are Typed
 
 Context values are for request-scoped metadata such as request IDs, sandbox IDs,
@@ -97,6 +134,10 @@ ctx = Context.background
 ctx.value(:sandbox_id, String) # => "sandbox-7"
 ctx.value(request_id)          # => "req-9"
 ```
+
+`with_value` does not create a new cancellation scope: the returned context
+shares its parent's cancellation source, so canceling it cancels the parent and
+its other descendants. Use `with_cancel` when you need an independent lifetime.
 
 ## What This Does Not Do
 
@@ -151,7 +192,7 @@ Run the full suite with:
 crystal spec --error-on-warnings
 ```
 
-The suite currently covers 47 examples across:
+The suite currently covers 51 examples across:
 
 - focused context behavior specs
 - edge and race specs for deadlines, cancellation, channels, values, and spawn
@@ -165,14 +206,18 @@ Build every runnable shard target with:
 shards build --error-on-warnings
 ```
 
-Run the preview execution-context integration spec with:
+Run the optional execution-context integration spec on its own with:
 
 ```sh
 crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context spec/execution_context_spec.cr
 ```
 
-The preview-flag suite has 48 examples because it includes the optional
-execution-context integration spec.
+Run the full suite with the preview flags to get all 52 examples (the 51 above
+plus the execution-context integration spec):
+
+```sh
+crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context
+```
 
 ## License
 
