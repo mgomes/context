@@ -56,7 +56,7 @@ class Context
 
       DeadlineScheduler::INSTANCE.remove(self)
       parent.try &.remove_child(self)
-      children.each { |child| child.cancel(reason, by_deadline) }
+      children.each(&.cancel(reason, by_deadline))
       true
     end
 

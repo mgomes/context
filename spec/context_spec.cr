@@ -67,9 +67,12 @@ describe Context do
 
     deadline = ctx.deadline
     deadline.should be_a(Time::Instant)
-    remaining = deadline.not_nil! - Time.instant
-    remaining.should be > Time::Span.zero
-    remaining.should be <= 1.second
+
+    if deadline
+      remaining = deadline - Time.instant
+      remaining.should be > Time::Span.zero
+      remaining.should be <= 1.second
+    end
   end
 
   it "propagates timeout cancellation to children" do
