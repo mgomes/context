@@ -56,6 +56,11 @@ Context.spawn(ctx, execution_context: sandbox_ec) do |child_ctx|
 end
 ```
 
+This API is compiled only when Crystal's execution-context preview is enabled.
+Without those flags, `Context.spawn(ctx)` uses Crystal's normal `spawn` and
+inherits the current runtime placement. Cancellation semantics stay the same in
+both modes.
+
 ## How Cancellation Works
 
 Cancellation is cooperative. Code stops when it calls `ctx.checkpoint!` or uses a
@@ -165,6 +170,9 @@ Run the preview execution-context integration spec with:
 ```sh
 crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context spec/execution_context_spec.cr
 ```
+
+The preview-flag suite has 48 examples because it includes the optional
+execution-context integration spec.
 
 ## License
 
