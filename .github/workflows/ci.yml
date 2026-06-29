@@ -27,8 +27,8 @@ jobs:
       - name: Run specs
         run: crystal spec --error-on-warnings
 
-      - name: Run execution-context preview spec
-        run: crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context spec/execution_context_spec.cr
+      - name: Run full suite under preview multithreading
+        run: crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context
 
       - name: Build example targets
         run: shards build --error-on-warnings
