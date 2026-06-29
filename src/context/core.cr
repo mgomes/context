@@ -48,7 +48,7 @@ class Context
   private def self.with_deadline_at(parent : Context, deadline : Time::Instant) : Context
     effective_deadline = effective_deadline(parent.deadline, deadline)
     ctx = new(CancelSource.new(parent.source), effective_deadline, parent.values)
-    ctx.start_deadline_timer
+    ctx.schedule_deadline
     ctx
   end
 

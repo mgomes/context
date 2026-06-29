@@ -31,7 +31,7 @@ class Context
     Time.instant + (deadline - Time.utc)
   end
 
-  protected def start_deadline_timer : Nil
+  protected def schedule_deadline : Nil
     source = @source
     deadline = @deadline
     return unless source && deadline
@@ -42,13 +42,7 @@ class Context
       return
     end
 
-    spawn do
-      select
-      when timeout(remaining)
-        source.cancel(DEADLINE_EXCEEDED, by_deadline: true)
-      when source.done.receive?
-      end
-    end
+    DeadlineScheduler::INSTANCE.register(deadline, source)
   end
 
   private def expire_deadline : Nil

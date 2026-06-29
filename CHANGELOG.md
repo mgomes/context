@@ -23,5 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of wall-clock `Time.utc`, so system clock adjustments no longer move when a
   deadline fires. `Context.with_deadline` still accepts a wall-clock `Time` and
   converts it once at creation; `Context#deadline` now returns a `Time::Instant`.
+- Deadlines are fired by a single shared background scheduler (a min-heap of
+  pending deadlines) instead of one fiber per deadline, so an abandoned deadline
+  context can be collected before it fires.
 
 [Unreleased]: https://github.com/mgomes/context/commits/master
