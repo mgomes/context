@@ -2,4 +2,5 @@
 /.shards/
 /bin/
 /lib/
+/shard.lock
 *.dwarf

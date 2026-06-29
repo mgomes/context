@@ -206,8 +206,8 @@ describe "context integration" do
     observed = Channel(String).new
 
     Context.spawn(timed) do |ctx|
-      sandbox_id = ctx.value(:sandbox_id, String).not_nil!
-      request = ctx.value(request_id).not_nil!
+      sandbox_id = ctx.value(:sandbox_id, String)
+      request = ctx.value(request_id)
       observed.send("#{sandbox_id}:#{request}")
     end
 

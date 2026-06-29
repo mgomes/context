@@ -10,6 +10,11 @@ repository: https://github.com/mgomes/context
 
 crystal: ">= 1.19.1"
 
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.6
+
 targets:
   timeout_loop:
     main: examples/timeout_loop.cr

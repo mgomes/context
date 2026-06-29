@@ -80,7 +80,7 @@ describe "concurrency" do
     cancel_done.receive
 
     collected.all?(&.cancelled?).should be_true
-    collected.each { |child| child.reason.should eq("shutdown") }
+    collected.each(&.reason.should(eq("shutdown")))
   end
 
   it "stays consistent while many timeout contexts register and cancel at once" do

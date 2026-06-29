@@ -31,4 +31,20 @@ jobs:
         run: crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context
 
       - name: Build example targets
-        run: shards build --error-on-warnings
+        run: shards --without-development build --error-on-warnings
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+        with:
+          crystal: "1.19.1"
+
+      - name: Install dependencies
+        run: shards install
+
+      - name: Lint with ameba
+        run: bin/ameba

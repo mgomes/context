@@ -209,7 +209,7 @@ The suite covers:
 Build every runnable shard target with:
 
 ```sh
-shards build --error-on-warnings
+shards --without-development build --error-on-warnings
 ```
 
 Run the optional execution-context integration spec on its own with:
@@ -223,6 +223,13 @@ integration spec:
 
 ```sh
 crystal spec --error-on-warnings -Dpreview_mt -Dexecution_context
+```
+
+Lint with [ameba](https://github.com/crystal-ameba/ameba):
+
+```sh
+shards install
+bin/ameba
 ```
 
 ## License

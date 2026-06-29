@@ -1,0 +1,4 @@
+# Ameba linter configuration. Run with `bin/ameba` (`bin/ameba --fix` to autocorrect).
+Excluded:
+  - lib
+  - bin

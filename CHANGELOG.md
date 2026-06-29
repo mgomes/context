@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   multithreading), and example builds across Crystal 1.19.1 and the latest
   release.
 - `description`, `authors`, and `repository` metadata in `shard.yml`.
+- Ameba lint configuration (`.ameba.yml`) with a dedicated CI lint job, and an
+  `.editorconfig`.
 
 ### Changed
 
