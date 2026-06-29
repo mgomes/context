@@ -8,7 +8,7 @@ authors:
 
 repository: https://github.com/mgomes/context
 
-crystal: ">= 1.19.0"
+crystal: ">= 1.19.1"
 
 targets:
   timeout_loop:

@@ -9,7 +9,7 @@ It does not decide where a fiber runs. It does not forcibly stop arbitrary
 Crystal code. It gives code a small, explicit handle it can pass down the stack
 and check at blocking or CPU-bound cooperative boundaries.
 
-Requires Crystal 1.19.0 or newer.
+Requires Crystal 1.19.1 or newer.
 
 ## What This Provides
 
